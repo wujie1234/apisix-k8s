@@ -17,47 +17,29 @@ APISIX 基于 Nginx 和 etcd，与传统 API 网关相比，APISIX 具有动态�
 ➜ mkdir -p apisix/ci
 
 
-由于apisix需要默认的sc进行绑定这里咱们使用nfs的helm包进行绑定
+# 由于apisix需要默认的sc进行绑定这里咱们使用nfs的helm包进行绑定
 ➜ helm repo add nfs-subdir-external-provisioner https:kubernetes-sigs.github.io/nfs-subdir-external-provisioner/
 ➜ helm upgrade --install nfs-subdir-external-provisioner nfs-subdir-external-provisioner/nfs-subdir-external-provisioner \
---set nfs.server=192.168.31.31 \  ---nfs节点ip
+--set nfs.server=192.168.31.31 \    
 --set nfs.path=/var/lib/k8s/data \  
 --set image.repository=cnych/nfs-subdir-external-provisioner \
 --set storageClass.defaultClass=true -n kube-system
-安装完后会创建出对应的sc
+# 安装完后会创建出对应的sc
 <img width="989" alt="image" src="https://github.com/wujie1234/apisix-k8s/assets/63633025/4b1f7341-c13f-47c6-8cf2-48d5d6d2be08">
 
-在 apisix/ci 目录中新建一个用于安装的 values 文件，内容如下所示：
-# ci/prod.yaml
-apisix:
-  enabled: true
+在 apisix/ci 目录中新建一个用于安装的 values 文件
 
-  nodeSelector: # 固定在node2节点上
-    kubernetes.io/hostname: node2
-
-gateway:
-  type: NodePort
-  externalTrafficPolicy: Cluster
-  http:
-    enabled: true
-    servicePort: 80
-    containerPort: 9080
-  tls:
-    enabled: true # 启用 tls
-    servicePort: 443
-    containerPort: 9443
-
-etcd:
-  enabled: true # 会自动创建3个节点的etcd集群
-  replicaCount: 1 # 多副本需要修改下模板，这里暂时运行一个etcd pod
-
-dashboard:
-  enabled: true
-
-ingress-controller:
-  enabled: true
-  config:
-    apisix:
-      serviceName: apisix-admin
-      serviceNamespace: apisix # 指定命名空间，如果不是 ingress-apisix 需要重新指定
-
+# 执行下面的命令进行一键安装：
+➜ helm upgrade --install apisix ./apisix -f ./apisix/ci/prod.yaml -n apisix
+Release "apisix" does not exist. Installing it now.
+NAME: apisix
+LAST DEPLOYED: Thu Dec 30 16:28:38 2021
+NAMESPACE: apisix
+STATUS: deployed
+REVISION: 1
+NOTES:
+1. Get the application URL by running these commands:
+  export NODE_PORT=$(kubectl get --namespace apisix -o jsonpath="{.spec.ports[0].nodePort}" services apisix-gateway)
+  export NODE_IP=$(kubectl get nodes --namespace apisix -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+<img width="598" alt="image" src="https://github.com/wujie1234/apisix-k8s/assets/63633025/8c0a0f6a-c3fe-4761-8f3d-d956d2798e81">
